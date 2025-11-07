@@ -1,122 +1,179 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Quality Puzzle Challenge</title>
-<style>
-  body { font-family: Arial, sans-serif; text-align: center; background: #f8f9fc; padding: 40px; }
-  h1 { color: #b30000; }
-  .puzzle { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
-  .piece { width: 120px; height: 120px; background-color: #eee; border: 2px solid #ccc; background-size: cover; background-position: center; }
-  #emailInput { padding: 8px; width: 250px; }
-  button { padding: 10px 20px; margin-top: 10px; cursor: pointer; }
-  #message { margin-top: 20px; font-weight: bold; color: green; }
-</style>
+  <meta charset="UTF-8">
+  <title>Quality Week Puzzle Challenge</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 40px;
+      background-color: #f7f9fc;
+    }
+    h1 { color: #333; }
+    .puzzle {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 5px;
+      margin-top: 20px;
+    }
+    .piece {
+      width: 100px;
+      height: 100px;
+      border: 1px solid #ccc;
+      background-size: cover;
+      background-position: center;
+    }
+    #message {
+      margin-top: 20px;
+      font-size: 1.2em;
+      color: green;
+    }
+    #emailInput { padding: 8px; width: 250px; }
+    #startBtn, #getPieceBtn {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 1em;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-  <h1>🧩 Takeda Quality Puzzle</h1>
-  <div id="loginSection">
-    <p>Enter your Takeda email to start:</p>
-    <input type="email" id="emailInput" placeholder="name@takeda.com" required />
-    <br />
+  <h1>🧩 Quality Week Puzzle Challenge</h1>
+
+  <div id="emailSection">
+    <p>Enter your email to start:</p>
+    <input type="email" id="emailInput" placeholder="example@takeda.com" required />
+    <br>
     <button id="startBtn">Start</button>
   </div>
 
   <div id="puzzleSection" style="display:none;">
-    <h3>Your Progress</h3>
+    <h3>Your Puzzle Progress:</h3>
     <div class="puzzle" id="puzzleBoard"></div>
+    <button id="getPieceBtn">Get Random Puzzle Piece</button>
     <div id="message"></div>
   </div>
 
 <script>
+  // -------- SETTINGS --------
   const TOTAL_PIECES = 4;
+  const PUZZLE_IMAGES = [
+    "puzzle1/piece1.png",
+    "puzzle1/piece2.png",
+    "puzzle1/piece3.png",
+    "puzzle1/piece4.png"
+  ];
+  const FULL_PUZZLE_IMAGE = "puzzle1/full.png";
+  const NOTIFY_WEBHOOK = "https://script.google.com/macros/s/AKfycbzR8Tq6Ia3BGO0rR9WJNu44tREh0BqS7beZgqqdIVTjwjyWXhNWxB1Vlc4sshve48f9/exec";
 
-  // ✅ Use an object instead of array, and remove spaces in folder name
-  const PIECE_IMAGES = {
-    0: "images/piece1.png",
-    1: "images/piece2.png",
-    2: "images/piece3.png",
-    3: "images/piece4.png"
-  };
-
-  const FULL_PUZZLE = "images/full.jpg";
-  const VALID_WINDOW = 60; // seconds
-  const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzVZ9y15NGESjSlJVdJYZB65ARVXdzjuqDsmHTxM2xGv-edz-0z4nxXQ870VxEgrmFM/exec";
-
+  // -------- VARIABLES --------
   let userEmail = "";
-  let userData = { pieces: [] };
+  let userData = {};
+  const urlParams = new URLSearchParams(window.location.search);
+  const thisPiece = parseInt(urlParams.get("piece"));
+  const token = parseInt(urlParams.get("token")); // new token param
 
-  const params = new URLSearchParams(window.location.search);
-  const booth = params.get("booth");
-  const token = params.get("token");
+  const startBtn = document.getElementById("startBtn");
+  const emailInput = document.getElementById("emailInput");
+  const puzzleSection = document.getElementById("puzzleSection");
+  const puzzleBoard = document.getElementById("puzzleBoard");
+  const message = document.getElementById("message");
+  const getPieceBtn = document.getElementById("getPieceBtn");
 
-  // --- Email login ---
-  document.getElementById("startBtn").onclick = () => {
-    const email = document.getElementById("emailInput").value.trim().toLowerCase();
-    if (!email.endsWith("@takeda.com")) {
-      alert("Please enter a valid Takeda email.");
-      return;
+  // -------- FUNCTIONS --------
+  function loadUser(email) {
+    const saved = localStorage.getItem("puzzle_" + email);
+    if (saved) {
+      userData = JSON.parse(saved);
+    } else {
+      userData = { pieces: [], completed: false };
     }
     userEmail = email;
-    localStorage.setItem("quality_user", email);
-    loadUser();
-  };
-
-  function loadUser() {
-    const saved = localStorage.getItem("quality_" + userEmail);
-    userData = saved ? JSON.parse(saved) : { pieces: [] };
-    document.getElementById("loginSection").style.display = "none";
-    document.getElementById("puzzleSection").style.display = "block";
     renderPuzzle();
-    if (booth && token) tryAddPiece(booth, token);
-  }
-
-  function renderPuzzle() {
-    const board = document.getElementById("puzzleBoard");
-    board.innerHTML = "";
-    for (let i = 0; i < TOTAL_PIECES; i++) {
-      const div = document.createElement("div");
-      div.className = "piece";
-      if (userData.pieces.includes(i)) {
-        div.style.backgroundImage = `url(${PIECE_IMAGES[i]})`;
-      }
-      board.appendChild(div);
-    }
-
-    const msg = document.getElementById("message");
-    if (userData.pieces.length === TOTAL_PIECES) {
-      board.innerHTML = `<img src="${FULL_PUZZLE}" width="300" />`;
-      msg.textContent = "🎉 Congratulations! Puzzle complete. Please redeem your prize!";
-      fetch(WEBHOOK_URL + "?email=" + encodeURIComponent(userEmail)).catch(()=>{});
-    } else {
-      msg.textContent = `You have ${userData.pieces.length}/${TOTAL_PIECES} pieces.`;
-    }
   }
 
   function saveUser() {
-    localStorage.setItem("quality_" + userEmail, JSON.stringify(userData));
+    localStorage.setItem("puzzle_" + userEmail, JSON.stringify(userData));
   }
 
-  function tryAddPiece(booth, token) {
-    const now = Math.floor(Date.now()/1000);
-    const [timestamp, secret] = atob(token).split(":");
-    if (Math.abs(now - timestamp) > VALID_WINDOW) {
-      alert("This QR code has expired. Please rescan the live code.");
+  function renderPuzzle() {
+    puzzleBoard.innerHTML = "";
+    for (let i = 0; i < TOTAL_PIECES; i++) {
+      const div = document.createElement("div");
+      div.className = "piece";
+      if (userData.pieces.includes(i + 1)) {
+        div.style.backgroundImage = `url(${PUZZLE_IMAGES[i]})`;
+      } else {
+        div.style.backgroundColor = "#eee";
+      }
+      puzzleBoard.appendChild(div);
+    }
+
+    if (userData.completed) {
+      puzzleBoard.innerHTML = `<img src="${FULL_PUZZLE_IMAGE}" width="320" alt="Full Puzzle"/>`;
+      getPieceBtn.style.display = "none";
+      message.innerHTML = "🎉 You completed the puzzle!";
+    }
+  }
+
+  function isTokenValid(token) {
+    if (!token) return false;
+    const now = Date.now();
+    // token represents milliseconds when generated
+    // allow ±30 seconds (30,000 ms)
+    return Math.abs(now - token) <= 30000;
+  }
+
+  function claimPiece() {
+    if (!thisPiece || thisPiece < 1 || thisPiece > TOTAL_PIECES) {
+      message.textContent = "Invalid QR link.";
       return;
     }
-    const boothIndex = parseInt(booth) - 1;
-    if (!userData.pieces.includes(boothIndex)) {
-      userData.pieces.push(boothIndex);
-      saveUser();
-      alert(`✅ Booth ${booth} piece collected!`);
-    } else {
-      alert("You already collected this booth's piece!");
+
+    if (!isTokenValid(token)) {
+      message.style.color = "red";
+      message.textContent = "⏳ QR code expired. Please scan again.";
+      return;
     }
+
+    if (userData.pieces.includes(thisPiece)) {
+      message.textContent = "You already claimed this puzzle piece!";
+      return;
+    }
+
+    userData.pieces.push(thisPiece);
+    saveUser();
     renderPuzzle();
+
+    message.style.color = "green";
+    message.textContent = `You collected puzzle piece #${thisPiece}!`;
+
+    if (userData.pieces.length === TOTAL_PIECES) {
+      userData.completed = true;
+      saveUser();
+      renderPuzzle();
+      notifyCompletion(userEmail);
+    }
   }
 
-  const storedEmail = localStorage.getItem("quality_user");
-  if (storedEmail) { userEmail = storedEmail; loadUser(); }
+  function notifyCompletion(email) {
+    fetch(NOTIFY_WEBHOOK + "?email=" + encodeURIComponent(email))
+      .catch(err => console.log("Notification failed", err));
+  }
+
+  startBtn.addEventListener("click", () => {
+    const email = emailInput.value.trim().toLowerCase();
+    if (!email) {
+      alert("Please enter your email.");
+      return;
+    }
+    loadUser(email);
+    document.getElementById("emailSection").style.display = "none";
+    puzzleSection.style.display = "block";
+    claimPiece();
+  });
 </script>
 </body>
 </html>
