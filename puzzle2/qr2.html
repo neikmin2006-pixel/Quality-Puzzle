@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Puzzle QR #2 - Auto Refresh</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f8f9fc;
+      padding: 40px;
+    }
+    h1 { color: #b30000; }
+    #qr {
+      margin: 30px auto;
+      width: 220px;
+      height: 220px;
+      border: 8px solid white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #timer {
+      font-size: 1.1em;
+      color: #333;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+</head>
+<body>
+  <h1>🧩 Puzzle Piece #2 QR</h1>
+  <p>Scan this QR code to claim your puzzle piece.</p>
+
+  <div id="qr"></div>
+  <p id="timer">Refreshing in <span id="countdown">30</span>s...</p>
+
+  <script>
+    const PIECE_NUMBER = 2;  
+    const TARGET_URL = "https://neikmin2006-pixel.github.io/Quality-Puzzle/"; 
+
+    const qr = new QRious({
+      element: document.createElement('canvas'),
+      size: 200
+    });
+
+    document.getElementById("qr").appendChild(qr.element);
+
+    let countdown = 30;
+
+    function generateQR() {
+      const token = Date.now();
+      const fullUrl = `${TARGET_URL}?piece=${PIECE_NUMBER}&token=${token}`;
+      qr.value = fullUrl;
+      console.log("QR refreshed:", fullUrl);
+      countdown = 30;
+    }
+
+    function updateTimer() {
+      countdown--;
+      document.getElementById("countdown").textContent = countdown;
+      if (countdown <= 0) {
+        generateQR();
+      }
+    }
+
+    generateQR();
+    setInterval(updateTimer, 1000);
+  </script>
+</body>
+</html>
